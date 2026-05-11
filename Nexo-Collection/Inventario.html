@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexo Exhibit | Matriz de Inventario Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Librerías para generación de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- Fuentes: Orbitron solo para el título, Plus Jakarta para el resto -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Plus+Jakarta+Sans:wght@300;400;600;800&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --nexo-blue: #00d4ff;
+            --nexo-amber: #ff9d00;
+            --nexo-dark: #050505;
+            --nexo-red: #ff4d4d;
+        }
+
+        body {
+            background-color: var(--nexo-dark);
+            color: #fff;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: 100vh;
+            background-image: radial-gradient(circle at 50% 50%, #0a0a0a 0%, #050505 100%);
+        }
+
+        /* Título estilo Star Wars */
+        .star-wars-title { 
+            font-family: 'Orbitron', sans-serif; 
+            text-transform: uppercase; 
+            letter-spacing: 6px;
+            font-weight: 900;
+        }
+
+        .header-font { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; letter-spacing: 1px; font-size: 10px; }
+        .mono-font { font-family: 'JetBrains Mono', monospace; }
+
+        .btn-nexo {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            padding: 8px 16px;
+            border: 1px solid var(--nexo-blue);
+            color: var(--nexo-blue);
+            background: rgba(0, 212, 255, 0.05);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        .btn-nexo:hover:not(:disabled) {
+            background: var(--nexo-blue);
+            color: black;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-nexo:disabled {
+            opacity: 0.2;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--nexo-blue) #000;
+        }
+
+        .inventory-table { 
+            width: 100%; 
+            border-collapse: separate; 
+            border-spacing: 0; 
+            min-width: 1200px; 
+        }
+        
+        .inventory-table th {
+            text-align: left; padding: 14px; font-size: 10px;
+            text-transform: uppercase; color: var(--nexo-blue);
+            background: rgba(10, 10, 10, 0.95); border-bottom: 2px solid var(--nexo-blue);
+            font-weight: 800;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .inventory-table td { 
+            padding: 12px 14px; 
+            font-size: 13px; 
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            background: rgba(255,255,255,0.01);
+        }
+
+        .custom-checkbox {
+            appearance: none; width: 16px; height: 16px; border: 1px solid var(--nexo-blue);
+            cursor: pointer; position: relative; background: transparent;
+            border-radius: 2px;
+        }
+        .custom-checkbox:checked { background: var(--nexo-blue); }
+        .custom-checkbox:checked::after { 
+            content: '✓'; position: absolute; color: black; font-weight: bold;
+            left: 2px; top: -2px; font-size: 12px;
+        }
+
+        select.filter-select {
+            background-color: #111;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--nexo-blue);
+            font-size: 11px;
+            padding: 8px;
+            outline: none;
+            width: 100%;
+            border-radius: 4px;
+        }
+
+        #report-menu, #field-selector {
+            display: none;
+            position: absolute;
+            background: #0f0f0f;
+            border: 1px solid var(--nexo-blue);
+            z-index: 100;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            padding: 1rem;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="p-6">
+    <div id="message-box" class="fixed top-4 right-4 z-[110] px-4 py-2 hidden text-[11px] font-bold"></div>
+
+    <header class="max-w-[1400px] mx-auto mb-8 flex flex-col lg:flex-row justify-between items-center gap-6">
+        <div class="text-center lg:text-left">
+            <h1 class="star-wars-title text-4xl mb-1 text-white">MATRIZ DE INVENTARIO</h1>
+            <p class="font-bold text-[10px] text-cyan-400 tracking-[4px] opacity-70 uppercase">Nexo Digital // Core Engine v2.5</p>
+        </div>
+        <div class="flex flex-wrap gap-3 justify-center relative">
+            <button onclick="clearDatabase()" class="btn-nexo !border-red-900 !text-red-500 hover:!bg-red-600 hover:!text-white">BORRAR DB</button>
+            <button onclick="downloadLayout()" class="btn-nexo !border-cyan-600 !text-cyan-400">DESCARGAR LAYOUT</button>
+            <button onclick="loadSampleData()" class="btn-nexo !border-amber-600 !text-amber-500">CARGAR MUESTRA</button>
+            
+            <div class="relative inline-block">
+                <button id="btn-report-toggle" onclick="toggleReportMenu()" class="btn-nexo !bg-cyan-500 !text-black disabled:opacity-30" id="main-report-btn">REPORTE</button>
+                <div id="report-menu" class="right-0 mt-2 w-56">
+                    <p class="text-[9px] font-extrabold text-cyan-400 mb-3 border-b border-white/10 pb-2 uppercase tracking-widest">TRANSMITIR DATOS</p>
+                    <button onclick="handleReportExport('pdf')" class="w-full text-left p-3 hover:bg-cyan-500/10 text-[11px] font-bold text-white/70 mb-1 rounded">AUDITORÍA PDF</button>
+                    <button onclick="handleReportExport('csv')" class="w-full text-left p-3 hover:bg-cyan-500/10 text-[11px] font-bold text-white/70 rounded">ARCHIVO CSV</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Stats -->
+    <div class="max-w-[1400px] mx-auto grid grid-cols-4 gap-4 mb-6">
+        <div class="bg-white/5 p-4 border-l-4 border-cyan-500">
+            <p class="text-[9px] font-bold text-white/40 tracking-widest mb-1 uppercase">UNIDADES</p>
+            <p id="stat-count" class="mono-font text-2xl">0</p>
+        </div>
+        <div class="bg-white/5 p-4 border-l-4 border-white/10 text-white/50">
+            <p class="text-[9px] font-bold text-white/20 tracking-widest mb-1 uppercase">INVERSIÓN</p>
+            <p id="stat-cost" class="mono-font text-2xl">$0</p>
+        </div>
+        <div class="bg-white/5 p-4 border-l-4 border-cyan-500">
+            <p class="text-[9px] font-bold text-white/40 tracking-widest mb-1 uppercase">VALUACIÓN</p>
+            <p id="stat-market" class="mono-font text-2xl text-cyan-400">$0</p>
+        </div>
+        <div class="bg-white/5 p-4 border-l-4 border-amber-500">
+            <p class="text-[9px] font-bold text-white/40 tracking-widest mb-1 uppercase">ROI GLOBAL</p>
+            <p id="stat-roi" class="mono-font text-2xl text-amber-500">0%</p>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="max-w-[1400px] mx-auto bg-white/5 p-5 mb-6 border border-white/10">
+        <div class="flex flex-col md:flex-row items-center gap-6">
+            <div class="flex-shrink-0">
+                <span class="text-[11px] font-black text-cyan-400 tracking-widest block uppercase mb-1">FILTROS VIVOS</span>
+                <button onclick="resetFilters()" class="text-[9px] font-bold text-white/30 hover:text-white underline uppercase">Limpiar</button>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-4 w-full">
+                <div class="flex flex-col"><label class="text-[8px] font-bold text-white/40 mb-1 uppercase">Fabricante</label><select id="f-maker" onchange="applyFilters()" class="filter-select"><option value="">TODOS</option></select></div>
+                <div class="flex flex-col"><label class="text-[8px] font-bold text-white/40 mb-1 uppercase">Franquicia</label><select id="f-ip" onchange="applyFilters()" class="filter-select"><option value="">TODOS</option></select></div>
+                <div class="flex flex-col"><label class="text-[8px] font-bold text-white/40 mb-1 uppercase">Escala</label><select id="f-scale" onchange="applyFilters()" class="filter-select"><option value="">TODOS</option></select></div>
+                <div class="flex flex-col"><label class="text-[8px] font-bold text-white/40 mb-1 uppercase">Línea</label><select id="f-line" onchange="applyFilters()" class="filter-select"><option value="">TODOS</option></select></div>
+                <div class="flex flex-col"><label class="text-[8px] font-bold text-white/40 mb-1 uppercase">Proveedor</label><select id="f-purchase_proof" onchange="applyFilters()" class="filter-select"><option value="">TODOS</option></select></div>
+                <div class="flex flex-col"><label class="text-[8px] font-bold text-white/40 mb-1 uppercase">Categoría</label><select id="f-category" onchange="applyFilters()" class="filter-select"><option value="">TODOS</option></select></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <main class="max-w-[1400px] mx-auto border border-white/10 bg-black/40 shadow-2xl rounded-sm overflow-hidden">
+        <div class="table-container">
+            <table class="inventory-table">
+                <thead id="inventory-head"></thead>
+                <tbody id="inventory-body"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        let allAssets = [];
+        let filteredAssets = [];
+        
+        const TABLE_COLUMNS = [
+            { id: 'vista', label: 'VISTA', visible: true, permanent: true },
+            { id: 'nombre', label: 'NOMBRE ACTIVO', visible: true, permanent: true },
+            { id: 'maker', label: 'FABRICANTE', visible: true },
+            { id: 'ip', label: 'FRANQUICIA', visible: true },
+            { id: 'line', label: 'LÍNEA', visible: true },
+            { id: 'scale', label: 'ESCALA', visible: true },
+            { id: 'cost', label: 'COSTO', visible: true },
+            { id: 'market_val', label: 'VALOR MKT', visible: true },
+            { id: 'roi', label: 'ROI %', visible: true },
+            { id: 'ctrl', label: 'ACCIONES', visible: true, permanent: true }
+        ];
+
+        window.onload = () => { 
+            refreshData(); 
+            document.addEventListener('click', (e) => {
+                const rep = document.getElementById('report-menu');
+                const tRep = document.getElementById('btn-report-toggle');
+                if (rep && rep.style.display === 'block' && !rep.contains(e.target) && !tRep.contains(e.target)) {
+                    rep.style.display = 'none';
+                }
+            });
+        };
+
+        function toggleReportMenu() {
+            const r = document.getElementById('report-menu');
+            r.style.display = r.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function refreshData() {
+            const raw = localStorage.getItem('nexo_assets');
+            allAssets = raw ? JSON.parse(raw) : [];
+            filteredAssets = [...allAssets];
+            
+            // Habilitar/Deshabilitar botón de reporte
+            document.getElementById('btn-report-toggle').disabled = filteredAssets.length === 0;
+            
+            populateFilters();
+            renderTable();
+            updateStats();
+        }
+
+        function populateFilters() {
+            const keys = ['maker', 'line', 'scale', 'ip', 'purchase_proof', 'category'];
+            keys.forEach(k => {
+                const s = document.getElementById(`f-${k}`);
+                if (s) {
+                    const u = [...new Set(allAssets.map(a => String(a[k] || '').toUpperCase()))].filter(Boolean).sort();
+                    s.innerHTML = `<option value="">TODOS</option>` + u.map(v => `<option value="${v}">${v}</option>`).join('');
+                }
+            });
+        }
+
+        function applyFilters() {
+            const f = {
+                maker: document.getElementById('f-maker').value.toLowerCase(),
+                line: document.getElementById('f-line').value.toLowerCase(),
+                scale: document.getElementById('f-scale').value.toLowerCase(),
+                ip: document.getElementById('f-ip').value.toLowerCase(),
+                prov: (document.getElementById('f-purchase_proof')?.value || '').toLowerCase(),
+                cat: (document.getElementById('f-category')?.value || '').toLowerCase()
+            };
+            filteredAssets = allAssets.filter(a => 
+                (!f.maker || (a.maker || '').toLowerCase() === f.maker) &&
+                (!f.line || (a.line || '').toLowerCase() === f.line) &&
+                (!f.scale || (a.scale || '').toLowerCase() === f.scale) &&
+                (!f.ip || (a.ip || '').toLowerCase() === f.ip) &&
+                (!f.prov || (a.purchase_proof || '').toLowerCase() === f.prov) &&
+                (!f.cat || (a.category || '').toLowerCase() === f.cat)
+            );
+            
+            document.getElementById('btn-report-toggle').disabled = filteredAssets.length === 0;
+            renderTable();
+            updateStats();
+        }
+
+        function renderTable() {
+            const head = document.getElementById('inventory-head');
+            const body = document.getElementById('inventory-body');
+            head.innerHTML = `<tr><th width="40" class="text-center"><input type="checkbox" onchange="toggleAll(this)" class="custom-checkbox"></th>${TABLE_COLUMNS.map(c => `<th>${c.label}</th>`).join('')}</tr>`;
+            
+            if (filteredAssets.length === 0) {
+                body.innerHTML = `<tr><td colspan="${TABLE_COLUMNS.length + 1}" class="text-center py-20 text-white/10 font-bold tracking-widest uppercase">Base de datos vacía // Sin registros</td></tr>`;
+                return;
+            }
+
+            body.innerHTML = filteredAssets.map(a => `
+                <tr class="hover:bg-cyan-500/5 transition-colors">
+                    <td class="text-center"><input type="checkbox" class="asset-selector custom-checkbox" data-id="${a.id}"></td>
+                    ${TABLE_COLUMNS.map(c => {
+                        const val = a[c.id] || '-';
+                        if(c.id === 'vista') return `<td><div class="w-10 h-10 bg-black/40 border border-white/5 flex items-center justify-center text-[7px] text-white/20">IMG</div></td>`;
+                        if(c.id === 'nombre') return `<td class="font-bold text-white">${val}</td>`;
+                        if(['cost', 'market_val'].includes(c.id)) return `<td class="mono-font ${c.id === 'market_val' ? 'text-cyan-400 font-bold' : 'text-white/40'}">$${parseFloat(val || 0).toLocaleString()}</td>`;
+                        if(c.id === 'roi') {
+                            const cst = parseFloat(a.cost || 0); const mkt = parseFloat(a.market_val || 0);
+                            const valRoi = cst > 0 ? (((mkt - cst) / cst) * 100).toFixed(0) : 0;
+                            return `<td class="mono-font text-amber-500 font-bold">${valRoi}%</td>`;
+                        }
+                        if(c.id === 'ctrl') return `<td><button onclick="deleteSingle('${a.id}')" class="p-2 text-white/20 hover:text-red-500 transition-colors"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td>`;
+                        return `<td class="text-white/60">${String(val).toUpperCase()}</td>`;
+                    }).join('')}
+                </tr>`).join('');
+        }
+
+        function updateStats() {
+            const cost = filteredAssets.reduce((s, a) => s + parseFloat(a.cost || 0), 0);
+            const mkt = filteredAssets.reduce((s, a) => s + parseFloat(a.market_val || 0), 0);
+            document.getElementById('stat-count').innerText = filteredAssets.length;
+            document.getElementById('stat-cost').innerText = `$${cost.toLocaleString()}`;
+            document.getElementById('stat-market').innerText = `$${mkt.toLocaleString()}`;
+            document.getElementById('stat-roi').innerText = cost > 0 ? (((mkt - cost) / cost) * 100).toFixed(1) + '%' : '0%';
+        }
+
+        function downloadLayout() {
+            const headers = "ID,NOMBRE,FABRICANTE,FRANQUICIA,LINEA,ESCALA,COSTO,VALOR_MKT,PROVEEDOR,CATEGORIA";
+            const blob = new Blob([headers], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', 'NEXO_LAYOUT_INVENTARIO.csv');
+            a.click();
+            showMessage("LAYOUT DESCARGADO");
+        }
+
+        function handleReportExport(format) {
+            const selectedChecks = Array.from(document.querySelectorAll('.asset-selector:checked'));
+            let dataToExport = [];
+
+            if (selectedChecks.length > 0) {
+                // Si hay seleccionados, solo esos
+                dataToExport = selectedChecks.map(cb => filteredAssets.find(a => a.id === cb.dataset.id));
+            } else {
+                // Si no hay seleccionados pero hay datos en pantalla, se exporta lo filtrado
+                dataToExport = filteredAssets;
+            }
+
+            if (dataToExport.length === 0) {
+                showMessage("ERROR: NO HAY DATOS PARA EMITIR REPORTE");
+                document.getElementById('report-menu').style.display = 'none';
+                return;
+            }
+
+            format === 'csv' ? generateCSV(dataToExport) : generatePDF(dataToExport);
+            document.getElementById('report-menu').style.display = 'none';
+        }
+
+        function generateCSV(data) {
+            const cols = TABLE_COLUMNS.filter(c => !['vista', 'ctrl'].includes(c.id));
+            let csv = cols.map(c => c.label).join(',') + '\n';
+            data.forEach(a => {
+                csv += cols.map(c => {
+                    let v = a[c.id] || '';
+                    if(c.id === 'roi') {
+                        const cost = parseFloat(a.cost || 0); const mkt = parseFloat(a.market_val || 0);
+                        v = cost > 0 ? (((mkt - cost) / cost) * 100).toFixed(2) + '%' : '0%';
+                    }
+                    return `"${String(v).replace(/"/g, '""')}"`;
+                }).join(',') + '\n';
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `NEXO_CSV_${new Date().getTime()}.csv`;
+            link.click();
+            showMessage("CSV DESCARGADO");
+        }
+
+        async function generatePDF(data) {
+            showMessage("GENERANDO TRANSMISIÓN PDF...");
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('l', 'mm', 'a4');
+                
+                // Fondo Oscuro Estilo Nexo
+                doc.setFillColor(10, 10, 10);
+                doc.rect(0, 0, 297, 210, 'F');
+                
+                doc.setTextColor(0, 212, 255);
+                doc.setFontSize(20);
+                doc.text("REPORTE DE INVENTARIO NEXO", 14, 20);
+                
+                doc.setFontSize(8);
+                doc.setTextColor(100, 100, 100);
+                doc.text(`TRANSFEENCIA DE DATOS: ${new Date().toLocaleString()}`, 14, 28);
+
+                const cols = TABLE_COLUMNS.filter(c => !['vista', 'ctrl'].includes(c.id));
+                const head = [cols.map(c => c.label)];
+                const body = data.map(a => cols.map(c => {
+                    if(c.id === 'roi') {
+                        const cost = parseFloat(a.cost || 0); const mkt = parseFloat(a.market_val || 0);
+                        return cost > 0 ? (((mkt - cost) / cost) * 100).toFixed(2) + '%' : '0%';
+                    }
+                    if(['cost', 'market_val'].includes(c.id)) return `$${parseFloat(a[c.id] || 0).toLocaleString()}`;
+                    return String(a[c.id] || '-').toUpperCase();
+                }));
+
+                doc.autoTable({
+                    head: head,
+                    body: body,
+                    startY: 35,
+                    theme: 'grid',
+                    headStyles: { fillColor: [0, 120, 150], textColor: 255, fontSize: 8 },
+                    bodyStyles: { fillColor: [15, 15, 15], textColor: 200, fontSize: 8 },
+                    alternateRowStyles: { fillColor: [20, 20, 20] },
+                    styles: { cellPadding: 3, lineColor: [40, 40, 40], lineWidth: 0.1 }
+                });
+
+                doc.save(`NEXO_AUDIT_${new Date().getTime()}.pdf`);
+                showMessage("PDF DESCARGADO");
+            } catch (err) {
+                console.error(err);
+                showMessage("ERROR AL GENERAR PDF");
+            }
+        }
+
+        function loadSampleData() {
+            const s = [
+                { id: '1', nombre: 'Darth Vader', maker: 'Hot Toys', ip: 'Star Wars', line: 'DX Series', scale: '1/6', cost: '310', market_val: '450' },
+                { id: '2', nombre: 'Spider-Man MK4', maker: 'Hot Toys', ip: 'Marvel', line: 'Video Game Masterpiece', scale: '1/6', cost: '285', market_val: '320' },
+                { id: '3', nombre: 'Boba Fett', maker: 'Sideshow', ip: 'Star Wars', line: 'Mythos', scale: '1/5', cost: '550', market_val: '720' }
+            ];
+            localStorage.setItem('nexo_assets', JSON.stringify(s)); refreshData(); showMessage("INVENTARIO CARGADO");
+        }
+
+        function toggleAll(m) { document.querySelectorAll('.asset-selector').forEach(c => c.checked = m.checked); }
+        function deleteSingle(id) { allAssets = allAssets.filter(a => a.id !== id); localStorage.setItem('nexo_assets', JSON.stringify(allAssets)); refreshData(); showMessage("ELIMINADO"); }
+        function clearDatabase() { localStorage.removeItem('nexo_assets'); refreshData(); showMessage("DB LIMPIA"); }
+        function resetFilters() { document.querySelectorAll('.filter-select').forEach(s => s.value = ""); applyFilters(); }
+
+        function showMessage(m) { 
+            const b = document.getElementById('message-box'); b.innerText = m; b.style.display = 'block'; 
+            b.className = "fixed top-4 right-4 z-[110] px-4 py-3 text-[11px] font-bold bg-black border-l-4 border-cyan-500 text-white shadow-2xl";
+            setTimeout(() => b.style.display = 'none', 3000); 
+        }
+    </script>
+</body>
+</html>
