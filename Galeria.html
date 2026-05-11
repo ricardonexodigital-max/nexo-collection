@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexo Gallery | Verified Assets v3.5</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --nexo-amber: #ff9d00;
+            --nexo-dark: #08090a;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            background-color: var(--nexo-dark);
+            color: #fff;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(255, 157, 0, 0.12) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(26, 28, 32, 1) 0%, transparent 100%);
+        }
+
+        #particles-canvas {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0.6;
+        }
+
+        .main-layout {
+            position: relative;
+            display: grid;
+            grid-template-columns: 420px 1fr;
+            width: 100%;
+            height: 100vh;
+            z-index: 10;
+        }
+
+        .category-bar {
+            position: absolute;
+            top: 25px;
+            left: 450px;
+            display: flex;
+            gap: 12px;
+            z-index: 110;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 50px;
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+        }
+
+        .cat-btn {
+            background: transparent;
+            padding: 8px 22px;
+            border-radius: 50px;
+            font-size: 11px; 
+            font-family: 'Syncopate';
+            font-weight: 700;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.4s;
+            color: rgba(255,255,255,0.5);
+            border: 1px solid transparent;
+            text-transform: uppercase;
+        }
+
+        .cat-btn:hover, .cat-btn.active {
+            background: var(--nexo-amber);
+            color: #000;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 157, 0, 0.3);
+        }
+
+        .info-panel {
+            background: rgba(8, 9, 10, 0.95);
+            backdrop-filter: blur(40px);
+            border-right: 1px solid var(--glass-border);
+            padding: 50px;
+            display: flex;
+            flex-direction: column;
+            z-index: 50;
+        }
+
+        .search-box {
+            position: relative;
+            margin-bottom: 40px;
+        }
+
+        .search-box input {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            padding: 15px 20px 15px 45px;
+            border-radius: 12px;
+            color: white;
+            font-size: 13px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .search-box input:focus {
+            border-color: var(--nexo-amber);
+            background: rgba(255,255,255,0.08);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--nexo-amber);
+        }
+
+        .display-title {
+            font-size: 1.8rem;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 15px;
+            background: linear-gradient(to bottom, #fff 40%, #777);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+            text-transform: uppercase;
+        }
+
+        .spec-label {
+            font-family: 'Syncopate', sans-serif;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            color: rgba(255, 157, 0, 0.7);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .spec-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.95);
+        }
+
+        .showroom {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding-right: 140px;
+            padding-top: 40px;
+        }
+
+        .stage-container {
+            position: relative;
+            width: 550px;
+            height: 600px;
+            perspective: 2000px;
+        }
+
+        .main-card {
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, #1a1c20 0%, #020202 100%);
+            border-radius: 40px;
+            border: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 80px 120px rgba(0,0,0,0.8);
+            transform-style: preserve-3d;
+            transition: transform 0.1s ease-out;
+        }
+
+        #active-image {
+            max-width: 85%;
+            max-height: 85%;
+            object-fit: contain;
+            filter: drop-shadow(0 40px 80px rgba(0,0,0,0.9));
+            transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .navigation-dock {
+            position: absolute;
+            right: 40px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(20px);
+            border-radius: 40px;
+            border: 1px solid var(--glass-border);
+            max-height: 80vh;
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+
+        .navigation-dock::-webkit-scrollbar { display: none; }
+
+        .nav-thumb {
+            width: 80px;
+            height: 100px;
+            border-radius: 15px;
+            background: #111;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            overflow: hidden;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav-thumb img {
+            width: 75%;
+            height: 75%;
+            object-fit: contain;
+            opacity: 0.4;
+            transition: 0.4s;
+        }
+
+        .nav-thumb.active {
+            border-color: var(--nexo-amber);
+            height: 120px;
+            box-shadow: 0 0 25px rgba(255, 157, 0, 0.2);
+            background: #1a1c20;
+        }
+
+        .nav-thumb.active img {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
+        .btn-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: auto;
+        }
+
+        .luxury-button {
+            background: #fff;
+            color: #000;
+            padding: 18px 30px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-size: 11px;
+            transition: all 0.4s;
+            text-align: center;
+            border-radius: 4px;
+        }
+
+        .luxury-button:hover {
+            background: var(--nexo-amber);
+            transform: scale(1.02);
+            box-shadow: 0 15px 40px rgba(255, 157, 0, 0.3);
+        }
+
+        .secondary-button {
+            background: transparent;
+            color: var(--nexo-amber);
+            border: 1px solid rgba(255, 157, 0, 0.3);
+            padding: 14px 30px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 10px;
+            transition: all 0.4s;
+            text-align: center;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="particles-canvas"></canvas>
+
+    <nav class="category-bar">
+        <button class="cat-btn active" onclick="filterCategory('TODOS', this)">TODOS</button>
+        <button class="cat-btn" onclick="filterCategory('SITH', this)">SITH</button>
+        <button class="cat-btn" onclick="filterCategory('IMPERIAL', this)">IMPERIAL</button>
+        <button class="cat-btn" onclick="filterCategory('NAVES', this)">NAVES</button>
+        <button class="cat-btn" onclick="filterCategory('HEROES', this)">HEROES</button>
+        <button class="cat-btn" onclick="filterCategory('DROIDS', this)">DROIDS</button>
+    </nav>
+
+    <main class="main-layout">
+        <section class="info-panel">
+            <div class="font-bold text-[12px] tracking-[4px] mb-8 text-white/40">
+                NEXODIGITAL<span class="text-amber-500">.SOLUTIONS</span>
+            </div>
+
+            <div class="search-box">
+                <span class="search-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                </span>
+                <input type="text" id="asset-search" placeholder="FILTRAR CATÁLOGO..." oninput="handleSearch()">
+            </div>
+            
+            <div id="info-content">
+                <h1 id="u-name" class="display-title">CARGANDO...</h1>
+                <div id="u-price" class="text-2xl font-light mb-4 text-white/80">$0.00</div>
+                <p id="u-desc" class="text-white/40 text-[13px] leading-relaxed mb-8">
+                    Sincronizando base de datos de activos verificados...
+                </p>
+
+                <div class="grid grid-cols-2 gap-y-8 gap-x-6 mb-10 border-t border-white/10 pt-8">
+                    <div>
+                        <span class="spec-label">Escala</span>
+                        <div id="u-scale" class="spec-value">---</div>
+                    </div>
+                    <div>
+                        <span class="spec-label">Articulación</span>
+                        <div id="u-art" class="spec-value">---</div>
+                    </div>
+                    <div>
+                        <span class="spec-label">Material</span>
+                        <div id="u-material" class="spec-value">---</div>
+                    </div>
+                    <div>
+                        <span class="spec-label">Ref. Serial</span>
+                        <div id="u-brand" class="spec-value">---</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="btn-container">
+                <!-- Se cambió el texto de 'VER ESTADÍSTICAS' a 'FICHA TÉCNICA' -->
+                <button class="secondary-button" onclick="location.href='workstation.html'">FICHA TÉCNICA</button>
+                <button class="luxury-button">ADQUIRIR PIEZA</button>
+            </div>
+        </section>
+
+        <section class="showroom">
+            <div class="stage-container" id="stage">
+                <div class="main-card" id="card">
+                    <img id="active-image" src="" class="opacity-0 scale-95" alt="Preview">
+                </div>
+            </div>
+            <div class="navigation-dock" id="nav-dock"></div>
+        </section>
+    </main>
+
+    <script>
+        const collection = [
+            { id: 1, category: 'SITH', name: 'DARTH VADER ULTIMATE', price: '$4,200', brand: 'NX-VAD-28', img: 'https://pngimg.com/uploads/darth_vader/darth_vader_PNG28.png', desc: 'Sith Lord en postura de combate clásica.', scale: '1/6 Scale', art: '30 Puntos', material: 'Polystone' },
+            { id: 2, category: 'SITH', name: 'VADER CLASSIC', price: '$1,200', brand: 'NX-VAD-454', img: 'https://cdn.pixabay.com/photo/2016/01/02/16/39/darth-vader-1118454_1280.png', desc: 'Representación icónica del lado oscuro.', scale: '1/10 Scale', art: '22 Puntos', material: 'PVC' },
+            { id: 3, category: 'SITH', name: 'DARTH MAUL LEGACY', price: '$3,800', brand: 'NX-MAUL-S', img: 'https://cdn.pixabay.com/photo/2017/09/25/15/05/figure-2785408_1280.png', desc: 'Guerrero Sith con sable doble.', scale: '1/6 Scale', art: '28 Puntos', material: 'ABS' },
+            { id: 4, category: 'IMPERIAL', name: 'STORM TROOPER ELITE', price: '$950', brand: 'NX-TRP-498', img: 'https://freepngimg.com/thumb/star_wars/87498-weapon-star-clone-wars-figurine-the-trooper.png', desc: 'Unidad de asalto frontal imperial.', scale: '1/10 Scale', art: '18 Puntos', material: 'PVC' },
+            { id: 5, category: 'IMPERIAL', name: 'CAPTAIN PHASMA', price: '$1,300', brand: 'NX-PHAS-273', img: 'https://cdn.pixabay.com/photo/2016/01/10/18/58/captain-phasma-1132273_1280.jpg', desc: 'Comandante de la Primera Orden con armadura cromada.', scale: '1/6 Scale', art: '28 Puntos', material: 'Chrome Finish' },
+            { id: 6, category: 'IMPERIAL', name: 'BOBA FETT RE-ARMORED', price: '$2,450', brand: 'NX-BOBA-563', img: 'https://cdn.pixabay.com/photo/2018/09/29/14/51/action-figure-3711563_1280.jpg', desc: 'El cazarrecompensas más temido.', scale: '1/6 Scale', art: '32 Puntos', material: 'Resina' },
+            { id: 7, category: 'NAVES', name: 'MILLENNIUM FALCON', price: '$12,500', brand: 'NX-MF-022', img: 'https://acdn-us.mitiendanube.com/stores/001/910/805/products/1-starwars-swj0022-juguete-milleniumfalcon-pack-445c72f056dbecf80517648989036517-1024-1024.webp', desc: 'Carguero ligero YT-1300 modificado.', scale: '1/72 Scale', art: 'Estático', material: 'Die-cast' },
+            { id: 8, category: 'NAVES', name: 'TIE INTERCEPTOR', price: '$8,400', brand: 'NX-TIE-237', img: 'https://freepngimg.com/thumb/symbol/92237-star-symbol-wars-miniatures-game-xwing-tie.png', desc: 'Interceptor de alta velocidad imperial.', scale: '1/32 Scale', art: 'Alas Mov.', material: 'Metal' },
+            { id: 9, category: 'NAVES', name: 'X-WING RED FIVE', price: '$9,200', brand: 'NX-XW-192', img: 'https://freepngimg.com/thumb/airplane/87192-starfighter-ywing-rotorcraft-awing-xwing-vehicle.png', desc: 'Caza estelar rebelde de T-65.', scale: '1/48 Scale', art: 'S-Foils', material: 'Resina' },
+            { id: 10, category: 'NAVES', name: 'DEATH STAR STATION', price: '$45,000', brand: 'NX-DS-367', img: 'https://cdn.pixabay.com/photo/2017/09/14/15/41/space-station-2749367_1280.png', desc: 'Estación de combate orbital definitiva.', scale: 'Micro Scale', art: 'Ninguna', material: 'Composite' },
+            { id: 11, category: 'HEROES', name: 'HAN SOLO HOT TOYS', price: '$2,900', brand: 'NX-HAN-15', img: 'https://lamafiatoys.com/cdn/shop/files/hot_toys_star_wars_retorno_del_jedi_han_solo_la_mafia_toys_distribuidores_mexico15.png', desc: 'El contrabandista más rápido de la galaxia.', scale: '1/6 Scale', art: '30 Puntos', material: 'Cuero/Tela' },
+            { id: 12, category: 'HEROES', name: 'PRINCESS LEIA', price: '$2,600', brand: 'NX-LEIA-944', img: 'https://freepngimg.com/thumb/star_wars/108944-leia-star-wars-princess-free-clipart-hq.png', desc: 'Líder rebelde y princesa de Alderaan.', scale: '1/6 Scale', art: '24 Puntos', material: 'Tela' },
+            { id: 13, category: 'HEROES', name: 'ANAKIN SKYWALKER', price: '$3,100', brand: 'NX-ANA-266', img: 'https://freepngimg.com/thumb/star_wars_battlefront/83266-star-outerwear-character-skywalker-wars-anakin-cloak.png', desc: 'Caballero Jedi antes de su caída.', scale: '1/6 Scale', art: '30 Puntos', material: 'Soft PVC' },
+            { id: 14, category: 'DROIDS', name: 'R2-D2 & C-3PO 4D', price: '$1,850', brand: 'NX-DRD-4D', img: 'https://media.vulcanita.com.ar/uploads/2025/08/2-4d-47191-rompeccabezas-starwars-c3por2d2-producto.webp', desc: 'Dúo de droides clásicos en formato 4D.', scale: '1:1 Scale', art: 'Fija', material: 'Cartón/Plástico' },
+            { id: 15, category: 'DROIDS', name: 'PROTOCOL DROID', price: '$1,650', brand: 'NX-ROB-537', img: 'https://cdn.pixabay.com/photo/2021/01/02/18/11/robot-5882537_1280.png', desc: 'Droide especializado en relaciones humanas.', scale: '1/4 Scale', art: '12 Puntos', material: 'Chrome' },
+            { id: 16, category: 'NAVES', name: 'IMPERIAL SHUTTLE', price: '$7,200', brand: 'NX-SHP-250', img: 'https://cdn.pixabay.com/photo/2017/10/12/10/57/spaceship-2844250_1280.png', desc: 'Transporte de personal de alto rango.', scale: '1/48 Scale', art: 'Alas Pleg.', material: 'Polímero' },
+            { id: 17, category: 'NAVES', name: 'REBEL CRUISER', price: '$15,000', brand: 'NX-CRU-277', img: 'https://cdn.pixabay.com/photo/2017/10/11/14/57/spaceship-2841277_1280.png', desc: 'Fragata de apoyo de la Alianza.', scale: '1/144 Scale', art: 'Ninguna', material: 'Resina' },
+            { id: 18, category: 'IMPERIAL', name: 'SCOUT TROOPER', price: '$1,100', brand: 'NX-SCO-650', img: 'https://cdn.pixabay.com/photo/2017/09/30/16/56/figure-2802650_1280.png', desc: 'Soldado de exploración de Endor.', scale: '1/10 Scale', art: '20 Puntos', material: 'PVC' }
+        ];
+
+        let currentFilter = 'TODOS';
+        let searchQuery = '';
+
+        function renderDock() {
+            const dock = document.getElementById('nav-dock');
+            dock.innerHTML = '';
+            
+            const filtered = collection.filter(item => {
+                const matchesCat = currentFilter === 'TODOS' || item.category === currentFilter;
+                const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+                return matchesCat && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                clearDisplay();
+                return;
+            }
+
+            filtered.forEach((item) => {
+                const thumb = document.createElement('div');
+                thumb.className = 'nav-thumb';
+                thumb.id = `thumb-${item.id}`;
+                thumb.innerHTML = `<img src="${item.img}" alt="${item.name}" loading="lazy">`;
+                thumb.onclick = () => selectItem(item);
+                dock.appendChild(thumb);
+            });
+
+            selectItem(filtered[0]);
+        }
+
+        function clearDisplay() {
+            document.getElementById('u-name').innerText = "SIN RESULTADOS";
+            document.getElementById('u-price').innerText = "$0.00";
+            document.getElementById('active-image').classList.add('opacity-0');
+        }
+
+        function selectItem(item) {
+            const img = document.getElementById('active-image');
+            img.classList.add('opacity-0', 'scale-95');
+            
+            document.querySelectorAll('.nav-thumb').forEach(t => t.classList.remove('active'));
+            const activeThumb = document.getElementById(`thumb-${item.id}`);
+            if(activeThumb) activeThumb.classList.add('active');
+
+            setTimeout(() => {
+                document.getElementById('u-name').innerText = item.name;
+                document.getElementById('u-price').innerText = item.price;
+                document.getElementById('u-brand').innerText = item.brand;
+                document.getElementById('u-desc').innerText = item.desc;
+                document.getElementById('u-scale').innerText = item.scale;
+                document.getElementById('u-art').innerText = item.art;
+                document.getElementById('u-material').innerText = item.material;
+                
+                img.src = item.img;
+                img.onload = () => img.classList.remove('opacity-0', 'scale-95');
+            }, 300);
+        }
+
+        function filterCategory(cat, btn) {
+            currentFilter = cat;
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderDock();
+        }
+
+        function handleSearch() {
+            searchQuery = document.getElementById('asset-search').value;
+            renderDock();
+        }
+
+        const stage = document.getElementById('stage');
+        document.addEventListener('mousemove', (e) => {
+            const x = (window.innerWidth / 2 - e.pageX) / 100;
+            const y = (window.innerHeight / 2 - e.pageY) / 100;
+            stage.style.transform = `rotateY(${-x}deg) rotateX(${y}deg)`;
+        });
+
+        const canvas = document.getElementById('particles-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function initParticles() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            particles = [];
+            for(let i=0; i<60; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 1.5,
+                    speed: 0.1 + Math.random() * 0.3,
+                    opacity: 0.1 + Math.random() * 0.4
+                });
+            }
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.y -= p.speed;
+                if(p.y < -10) p.y = canvas.height + 10;
+                ctx.fillStyle = `rgba(255, 157, 0, ${p.opacity})`;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+            });
+            requestAnimationFrame(animateParticles);
+        }
+
+        window.onload = () => {
+            initParticles();
+            animateParticles();
+            renderDock();
+        };
+    </script>
+</body>
+</html>
